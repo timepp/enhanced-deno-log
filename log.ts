@@ -14,7 +14,7 @@ const fmtDate = (date: Date, fmt: string) => {
 		'S': date.getSeconds(),
 		'T': date.getMilliseconds()
 	}
-	return [...fmt].map(c => o[c as keyof typeof o]?.toString()?.padStart(2, '0') || c).join('')
+	return [...fmt].map(c => o[c as keyof typeof o]?.toString()?.padStart(c === 'T'? 3 : 2, '0') || c).join('')
 }
 
 const write = (type: string, data: any[]) => {

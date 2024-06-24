@@ -2,7 +2,7 @@ import * as log from './log.ts'
 
 console.log('Hello, World!')
 console.error('Errors!')
-console.warn('Warnings!')
+console.warn('警告!')
 log.setDateFormat('m-d H:M:S.T')
 console.info('Information!')
 console.debug('Debugging!')
