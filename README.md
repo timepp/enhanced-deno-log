@@ -5,7 +5,7 @@
 ## Features
 
 - Zero configuration, changing `console.xxx` behavior globally
-- Colored output for errors(red), warnings(yellow), infos(blue), debugs(gray)
+- Colored output for errors(red), warnings(yellow), infos(blue), debugs(gray), timers(green)
 - Each log prefixed with timestamp and log level
 - Log files auto created in `./logs` folder
 
@@ -18,7 +18,14 @@ import 'jsr:@timepp/zero-config-deno-log'
 
 That's it.
 
-## Todo
+## Advanced Usage
 
-- Add configurations to customize detailed behavior for advanced usage. (typically it's not needed - when you want to customize, you should first ask yourself: is that really necessary?)
+In rare cases you may want to customize the log behavior.
 
+```ts
+import * as dl from 'jsr:@timepp/zero-config-deno-log'
+
+// change date format:
+dl.setDateFormat('m-d H:M:S')
+
+```
