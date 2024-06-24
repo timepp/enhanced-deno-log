@@ -2,8 +2,10 @@
 const name = Deno.mainModule.replace(/.*\/([^\\]+)\.ts$/, '$1')
 try { Deno.statSync('./logs/') } catch { Deno.mkdirSync('./logs/') }
 const file = Deno.createSync(`./logs/${name}-${new Date().toJSON().replaceAll(':', '_')}.log`)
-
-let dateFormat = 'y-m-d H:M:S.T'
+const config = {
+	dateFormat: 'y-m-d H:M:S.T',
+	prefixEmptyLines: false
+}
 const fmtDate = (date: Date, fmt: string) => {
 	const o = {
 		'y': date.getFullYear(),
@@ -18,12 +20,20 @@ const fmtDate = (date: Date, fmt: string) => {
 }
 
 const write = (type: string, data: any[]) => {
-	const datePart = `[${fmtDate(new Date, dateFormat)}]`
+	const datePart = `[${fmtDate(new Date, config.dateFormat)}]`
 	const levelPart = `[${type.padStart(5, ' ')}]`
 	const records = []
 	for (let i = 0; i < data.length; ++i)
 		records.push((typeof data[i] === 'object') ? Deno.inspect(data[i]) : data[i])
 	const raw = records.join(' ')
+
+	if (config.prefixEmptyLines === false) {
+		if (raw.trim() === '') {
+			file.write(new TextEncoder().encode('\n'))
+			return ''
+		}
+	}
+
 	const lines = raw.split('\n')
 	let prefixed = ''
 	if (lines.length === 1) {
@@ -88,6 +98,13 @@ globalThis.console.timeEnd = (label = 'default') => {
  * 
  * e.g. setDateFormat('y-m-d H:M:S.T')
  */
-export function setDateFormat(fmt: string) {
-	dateFormat = fmt
+export function setDateFormat(fmt = 'y-m-d H:M:S.T') {
+	config.dateFormat = fmt
+}
+
+/**
+ * Set whether prefix empty lines with date and log level
+ */
+export function prefixEmptyLines(p = false) {
+	config.prefixEmptyLines = p
 }
