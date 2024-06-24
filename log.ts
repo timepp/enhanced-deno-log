@@ -4,7 +4,7 @@
 	const file = Deno.createSync(`./logs/${name}-${new Date().toJSON().replaceAll(':', '_')}.log`)
 
 	const write = (type: string, data: any[]) => {
-		const header = `[${new Date().toJSON()}] [${type}]`
+		const header = `[${new Date().toJSON()}] [${type.padStart(5, ' ')}]`
 		const records = []
 		for (let i = 0; i < data.length; ++i)
 			records.push((typeof data[i] === 'object')? Deno.inspect(data[i]) : data[i])
