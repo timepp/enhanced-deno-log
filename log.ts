@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 {
     const name = Deno.mainModule.replace(/.*\/([^\\]+)\.ts$/, '$1')
     try { Deno.statSync('./logs/') } catch { Deno.mkdirSync('./logs/') }
