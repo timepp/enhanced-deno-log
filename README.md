@@ -20,6 +20,8 @@ That's it.
 
 ## Advanced Usage
 
+### Customizing log behavior
+
 In rare cases you may want to customize the log behavior.
 
 ```ts
@@ -31,4 +33,14 @@ dl.setDateFormat('m-d H:M:S')
 // set empty line prefix behavior:
 dl.prefixEmptyLines(true)
 
+```
+
+### Existing colored logs
+
+You can still use single line colored logs, in this case the base color of the line is decided by level, and your colors are also respected at the same time.
+
+However, for multi-line colored logs, there is a known issue that followed lines are not prefixed with timestamp and log level. This will be fixed in upcoming versions.
+
+```ts
+console.info('this is in "info" color (the same for prefix as well). %c and this is in "red" color', 'color: red')
 ```

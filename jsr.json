@@ -1,5 +1,5 @@
 {
     "name": "@timepp/zero-config-deno-log",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "exports": "./log.ts"
 }

@@ -4,7 +4,8 @@ try { Deno.statSync('./logs/') } catch { Deno.mkdirSync('./logs/') }
 const file = Deno.createSync(`./logs/${name}-${new Date().toJSON().replaceAll(':', '_')}.log`)
 const config = {
 	dateFormat: 'y-m-d H:M:S.T',
-	prefixEmptyLines: false
+	prefixEmptyLines: false,
+	colors: {error: 'red', warn: 'yellow', log: 'lightgray', info: 'blue', debug: 'gray', timer: 'green'}
 }
 const fmtDate = (date: Date, fmt: string) => {
 	const o = {
@@ -18,10 +19,9 @@ const fmtDate = (date: Date, fmt: string) => {
 	}
 	return [...fmt].map(c => o[c as keyof typeof o]?.toString()?.padStart(c === 'T'? 3 : 2, '0') || c).join('')
 }
-
+const getPrefix = (type: string) => [`[${fmtDate(new Date, config.dateFormat)}]`, `[${type.padStart(5, ' ')}]`]
 const write = (type: string, data: any[]) => {
-	const datePart = `[${fmtDate(new Date, config.dateFormat)}]`
-	const levelPart = `[${type.padStart(5, ' ')}]`
+	const [datePart, levelPart] = getPrefix(type)
 	const records = []
 	for (let i = 0; i < data.length; ++i)
 		records.push((typeof data[i] === 'object') ? Deno.inspect(data[i]) : data[i])
@@ -56,20 +56,25 @@ const write = (type: string, data: any[]) => {
 	return prefixed
 }
 
-const error = globalThis.console.error
-globalThis.console.error = (...data: any[]) => error('%c' + write('error', data), 'color:red')
+const rawConsole = {...globalThis.console}
 
-const warn = globalThis.console.warn
-globalThis.console.warn = (...data: any[]) => warn('%c' + write('warn', data), 'color:yellow')
-
-const log = globalThis.console.log
-globalThis.console.log = (...data: any[]) => log(write('log', data))
-
-const info = globalThis.console.info
-globalThis.console.info = (...data: any[]) => info('%c' + write('info', data), 'color:blue')
-
-const debug = globalThis.console.debug
-globalThis.console.debug = (...data: any[]) => debug('%c' + write('debug', data), 'color:gray')
+for (const k of ['error', 'warn', 'log', 'info', 'debug'] as const) {
+	globalThis.console[k] = (...data: any[]) => {
+		if (data.length > 0 && typeof data[0] === 'string') {
+			// check if there is '%c' inside the string, if so we cannot do anything, just pass it to raw console
+			// note that '%%c' is just normal string, not format specifier
+			const s = data[0] as string
+			for (let i = 0; i < s.length; ++i) {
+				if (s[i] === '%' && s[i + 1] === 'c' && (i === 0 || s[i - 1] !== '%')) {
+					const [d, l] = getPrefix(k)
+					rawConsole[k](`%c${d}─${l} ` + data[0], `color:${config.colors[k]}`, ...data.slice(1))
+					return
+				}
+			}
+		}
+		rawConsole[k]('%c' + write(k, data), `color:${config.colors[k]}`)
+	}
+}
 
 const timers: Record<string, number> = {}
 globalThis.console.time = (label = 'default') => {
@@ -82,14 +87,14 @@ globalThis.console.timeLog = (label = 'default', ...data: any[]) => {
 	const startTime = timers[label]
 	if (!startTime)
 		return console.warn(`Timer ${label} doesn't exist.`, timers)
-	log('%c' + write('timer', [`${label}: ${(logTime - startTime).toLocaleString(undefined, { maximumFractionDigits: 0 })}ms`, ...data]), 'color:green')
+	rawConsole.log('%c' + write('timer', [`${label}: ${(logTime - startTime).toLocaleString(undefined, { maximumFractionDigits: 0 })}ms`, ...data]), 'color:green')
 }
 globalThis.console.timeEnd = (label = 'default') => {
 	const endTime = performance.now()
 	const startTime = timers[label]
 	if (!startTime)
 		return console.warn(`Timer ${label} doesn't exist.`, timers)
-	log('%c' + write('timer', [`${label}: ${(endTime - startTime).toLocaleString(undefined, { maximumFractionDigits: 0 })}ms - timer ended`]), 'color:green')
+	rawConsole.log('%c' + write('timer', [`${label}: ${(endTime - startTime).toLocaleString(undefined, { maximumFractionDigits: 0 })}ms - timer ended`]), 'color:green')
 	delete timers[label]
 }
 
@@ -108,3 +113,12 @@ export function setDateFormat(fmt = 'y-m-d H:M:S.T') {
 export function prefixEmptyLines(p = false) {
 	config.prefixEmptyLines = p
 }
+
+/**
+ * Set colors for different log levels
+ */
+export function setColors(colors: Partial<typeof config.colors>) {
+	Object.assign(config.colors, colors)
+}
+
+export const raw = rawConsole
