@@ -2,9 +2,11 @@ import * as log from './log.ts'
 log.setDateFormat('m-d H:M:S.T')
 
 console.log('Hello, World!')
+console.log('')
+console.log('%c%c')
 console.error('Errors!')
 console.warn('警告!')
-console.info('Information!')
+console.info('Information!', 20, {a: 1, b: 2}, [])
 console.debug('Debugging!')
 console.log()
 console.error('\nmulti line\nerrors!\nanother line!\n\nfda\n\n')

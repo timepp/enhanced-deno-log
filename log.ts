@@ -51,6 +51,7 @@ const rawConsole = {...globalThis.console}
 
 const timestampedLeveledLog = (level: keyof typeof config.colors, data: any[]) => {
 	const [dp, lp] = getPrefix(level)
+	const emptyLineIntention = data.length === 0
 	if (data.length === 0) data = ['']
 
 	let fi = 1
@@ -66,10 +67,12 @@ const timestampedLeveledLog = (level: keyof typeof config.colors, data: any[]) =
 		outputInfo.push(...formatParams([data[0]]).split('\n').map(l => ({l, colors: []})))
 	}
 
-	const remainingLines = formatParams(data.slice(fi)).split('\n')
-	outputInfo[outputInfo.length - 1].l += remainingLines.shift()
-	for (const l of remainingLines) {
-		outputInfo.push({ l, colors: [] })
+	if (fi < data.length) {
+		const remainingLines = formatParams(data.slice(fi)).split('\n')
+		outputInfo[outputInfo.length - 1].l += ' '+ remainingLines.shift()
+		for (const l of remainingLines) {
+			outputInfo.push({ l, colors: [] })
+		}
 	}
 
 	const pf = `color:${config.colors[level]}`
@@ -77,7 +80,7 @@ const timestampedLeveledLog = (level: keyof typeof config.colors, data: any[]) =
 	for (let i = 0; i < outputInfo.length; ++i) {
 		const c = outputInfo[i]
 		const connector = outputInfo.length === 1 ? '─' : (i === 0 ? '┬' : i === outputInfo.length - 1 ? '└' : '├')
-		if (config.prefixEmptyLines === false && outputInfo.length === 1 && c.l.trim() === '') {
+		if (config.prefixEmptyLines === false && emptyLineIntention) {
 			// if there is only one line and it's empty, don't prefix it
 		} else {
 			c.l = `%c${dp}${connector}${lp} %c` + c.l
@@ -121,6 +124,7 @@ globalThis.console.timeEnd = (label = 'default') => {
 }
 
 /** 
+ * Set date format for timestamp prefix in log messages
  * Use following single character to represent date parts: y - year, m - month, d - day, H - hour, M - minute, S - second, T - millisecond
  * 
  * e.g. setDateFormat('y-m-d H:M:S.T')
@@ -130,7 +134,11 @@ export function setDateFormat(fmt = 'y-m-d H:M:S.T') {
 }
 
 /**
- * Set whether prefix empty lines with date and log level
+ * Whether to prefix log calls with no parameters, e.g. `console.log()`
+ * Set this to `true` will keep writing prefix in this case
+ * Set this to `false` will end up with a blank line
+ * Default is `false`
+ * Note: there will always be prefix for log calls with parameters, even this causes empty line, e.g. `console.log('')`
  */
 export function prefixEmptyLines(p = false) {
 	config.prefixEmptyLines = p
@@ -143,4 +151,7 @@ export function setColors(colors: Partial<typeof config.colors>) {
 	Object.assign(config.colors, colors)
 }
 
+/**
+ * Get the raw console object in case you need to use the original console
+ */
 export const raw = rawConsole
