@@ -37,9 +37,7 @@ dl.prefixEmptyLines(true)
 
 ### Existing colored logs
 
-You can still use single line colored logs, in this case the base color of the line is decided by level, and your colors are also respected at the same time.
-
-However, for multi-line colored logs, there is a known issue that followed lines are not prefixed with timestamp and log level. This will be fixed in upcoming versions.
+You can still use colored logs, in this case the base color of the line is decided by level, and your colors are respected at the same time.
 
 ```ts
 console.info('this is in "info" color (the same for prefix as well). %c and this is in "red" color', 'color: red')

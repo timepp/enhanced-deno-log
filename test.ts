@@ -1,5 +1,4 @@
 import * as log from './log.ts'
-
 log.setDateFormat('m-d H:M:S.T')
 
 console.log('Hello, World!')
@@ -12,6 +11,5 @@ console.error('\nmulti line\nerrors!\nanother line!\n\nfda\n\n')
 console.time('timer')
 console.timeLog('timer', 'action started')
 console.timeEnd('timer')
-log.setColors({error: '#ff00ff'})
-console.error('Errors!')
-console.info('%cHello, \nW%corld!', 'color:#00ffff', 'color:#ff00ff')
+console.log()
+console.info('%cmulti-line \n%ccolored%c\nlog', 'color:#00ffff', 'color:#ff00ff', 'color:#00ff00')

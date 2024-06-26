@@ -20,60 +20,82 @@ const fmtDate = (date: Date, fmt: string) => {
 	return [...fmt].map(c => o[c as keyof typeof o]?.toString()?.padStart(c === 'T'? 3 : 2, '0') || c).join('')
 }
 const getPrefix = (type: string) => [`[${fmtDate(new Date, config.dateFormat)}]`, `[${type.padStart(5, ' ')}]`]
-const write = (type: string, data: any[]) => {
-	const [datePart, levelPart] = getPrefix(type)
+const formatParams = (data: any[]) => {
 	const records = []
 	for (let i = 0; i < data.length; ++i)
 		records.push((typeof data[i] === 'object') ? Deno.inspect(data[i]) : data[i])
-	const raw = records.join(' ')
-
-	if (config.prefixEmptyLines === false) {
-		if (raw.trim() === '') {
-			file.write(new TextEncoder().encode('\n'))
-			return ''
-		}
+	return records.join(' ')
+}
+// count '%c' in a string but ignore '%%c'
+const findColorSpecifiers = (s: string) => {
+	const r = []
+	for (let i = 0; i < s.length - 1; ++i) {
+		if (s[i] === '%' && s[i + 1] === 'c' && (i === 0 || s[i - 1] !== '%'))
+			r.push(i)
 	}
-
-	const lines = raw.split('\n')
-	let prefixed = ''
-	if (lines.length === 1) {
-		prefixed += `${datePart}─${levelPart} ${lines[0]}`
-	} else if (lines.length > 1) {
-		for (let i = 0; i < lines.length; ++i) {
-			const line = lines[i]
-			if (i === 0) {
-				prefixed += `${datePart}┬${levelPart} ${line}`
-			} else if (i < lines.length - 1) {
-				prefixed += `\n${datePart}├${levelPart} ${line}`
-			} else if (i === lines.length - 1) {
-				prefixed += `\n${datePart}└${levelPart} ${line}`
-			}
-		}
+	return r
+}
+const removeColorSpecifiers = (s: string, removeLimit: number) => {
+	const cs = findColorSpecifiers(s).slice(0, removeLimit)
+	let r = ''
+	let p = 0
+	for (const c of cs) {
+		r += s.slice(p, c)
+		p = c + 2
 	}
-
-	//const prefixed = raw.split('\n').map(v => `${header} ${v}`).join('\n')
-	file.write(new TextEncoder().encode(prefixed + '\n'))
-	return prefixed
+	r += s.slice(p)
+	return r
 }
 
 const rawConsole = {...globalThis.console}
 
-for (const k of ['error', 'warn', 'log', 'info', 'debug'] as const) {
-	globalThis.console[k] = (...data: any[]) => {
-		if (data.length > 0 && typeof data[0] === 'string') {
-			// check if there is '%c' inside the string, if so we cannot do anything, just pass it to raw console
-			// note that '%%c' is just normal string, not format specifier
-			const s = data[0] as string
-			for (let i = 0; i < s.length; ++i) {
-				if (s[i] === '%' && s[i + 1] === 'c' && (i === 0 || s[i - 1] !== '%')) {
-					const [d, l] = getPrefix(k)
-					rawConsole[k](`%c${d}─${l} ` + data[0], `color:${config.colors[k]}`, ...data.slice(1))
-					return
-				}
-			}
+const timestampedLeveledLog = (level: keyof typeof config.colors, data: any[]) => {
+	const [dp, lp] = getPrefix(level)
+	if (data.length === 0) data = ['']
+
+	let fi = 1
+	const outputInfo: {l: string, colors: string[]}[] = []
+	if (typeof data[0] === 'string') {
+		const lines = data[0].split('\n')
+		for (const l of lines) {
+			const c = findColorSpecifiers(l).length
+			outputInfo.push({l, colors: data.slice(fi, fi + c)})
+			fi += c
 		}
-		rawConsole[k]('%c' + write(k, data), `color:${config.colors[k]}`)
+	} else {
+		outputInfo.push(...formatParams([data[0]]).split('\n').map(l => ({l, colors: []})))
 	}
+
+	const remainingLines = formatParams(data.slice(fi)).split('\n')
+	outputInfo[outputInfo.length - 1].l += remainingLines.shift()
+	for (const l of remainingLines) {
+		outputInfo.push({ l, colors: [] })
+	}
+
+	const pf = `color:${config.colors[level]}`
+	let currentUserColorFormat = pf
+	for (let i = 0; i < outputInfo.length; ++i) {
+		const c = outputInfo[i]
+		const connector = outputInfo.length === 1 ? '─' : (i === 0 ? '┬' : i === outputInfo.length - 1 ? '└' : '├')
+		if (config.prefixEmptyLines === false && outputInfo.length === 1 && c.l.trim() === '') {
+			// if there is only one line and it's empty, don't prefix it
+		} else {
+			c.l = `%c${dp}${connector}${lp} %c` + c.l
+			c.colors = [pf, currentUserColorFormat, ...c.colors]
+		}
+		if (c.colors.length > 0) {
+			currentUserColorFormat = c.colors[c.colors.length - 1]
+		}
+	}
+
+	const finalContent = outputInfo.map(o => o.l).join('\n')
+	const finalColors = outputInfo.flatMap(o => o.colors)
+	file.write(new TextEncoder().encode(removeColorSpecifiers(finalContent, finalColors.length) + '\n'))
+	rawConsole[level === 'timer'? 'log' : level](finalContent, ...finalColors)
+}
+
+for (const k of ['error', 'warn', 'log', 'info', 'debug'] as const) {
+	globalThis.console[k] = (...data: any[]) => timestampedLeveledLog(k, data)
 }
 
 const timers: Record<string, number> = {}
@@ -87,14 +109,14 @@ globalThis.console.timeLog = (label = 'default', ...data: any[]) => {
 	const startTime = timers[label]
 	if (!startTime)
 		return console.warn(`Timer ${label} doesn't exist.`, timers)
-	rawConsole.log('%c' + write('timer', [`${label}: ${(logTime - startTime).toLocaleString(undefined, { maximumFractionDigits: 0 })}ms`, ...data]), 'color:green')
+	timestampedLeveledLog('timer', [`${label}: ${(logTime - startTime).toLocaleString(undefined, { maximumFractionDigits: 0 })}ms`, ...data])
 }
 globalThis.console.timeEnd = (label = 'default') => {
 	const endTime = performance.now()
 	const startTime = timers[label]
 	if (!startTime)
 		return console.warn(`Timer ${label} doesn't exist.`, timers)
-	rawConsole.log('%c' + write('timer', [`${label}: ${(endTime - startTime).toLocaleString(undefined, { maximumFractionDigits: 0 })}ms - timer ended`]), 'color:green')
+	timestampedLeveledLog('timer', [`${label}: ${(endTime - startTime).toLocaleString(undefined, { maximumFractionDigits: 0 })}ms - timer ended`])
 	delete timers[label]
 }
 
