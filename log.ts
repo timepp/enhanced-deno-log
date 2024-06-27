@@ -23,7 +23,7 @@ const getPrefix = (type: string) => [`[${fmtDate(new Date, config.dateFormat)}]`
 const formatParams = (data: any[]) => {
 	const records = []
 	for (let i = 0; i < data.length; ++i)
-		records.push((typeof data[i] === 'object') ? Deno.inspect(data[i]) : data[i])
+		records.push((typeof data[i] === 'string') ? data[i] : Deno.inspect(data[i]))
 	return records.join(' ')
 }
 // count '%c' in a string but ignore '%%c'
