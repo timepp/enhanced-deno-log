@@ -1,13 +1,17 @@
-# optimized deno log with zero configuration
+# Enhanced Deno Log
 
-![](screenshot.png)
+Brings timestamp/levels prefix, coloring by levels, and log files to Deno's `console` API.
+
+> Note: https://jsr.io/@timepp/zero-config-deno-log is the old name, it contains versions up to 0.1.7 and won't be updated anymore. Please use https://jsr.io/@timepp/enhanced-deno-log instead.
 
 ## Features
 
-- Zero configuration, changing `console.xxx` behavior globally
 - Colored output for errors(red), warnings(yellow), infos(blue), debugs(gray), timers(green)
 - Each log is prefixed with timestamp and log level; for multi-line logs, each log line is prefixed with timestamp and log level individually so that they are aligned and easy to read
 - Log files are automatically created in `./logs` folder, with the entrypoint script name as the file name
+- This module changes `console.xxx` behavior globally, so all your existing code will automatically have these features with zero configuration; you can customize detailed behavior if needed
+
+![](screenshot.png)
 
 ## Usage
 
