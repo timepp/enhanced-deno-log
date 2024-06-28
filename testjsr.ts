@@ -1,4 +1,4 @@
-import 'jsr:@timepp/zero-config-deno-log'
+import 'jsr:@timepp/enhanced-deno-log'
 
 console.log('Hello, World!')
 console.error('Errors!')
