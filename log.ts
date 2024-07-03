@@ -5,7 +5,8 @@ const file = Deno.createSync(`./logs/${name}-${new Date().toJSON().replaceAll(':
 const config = {
 	dateFormat: 'y-m-d H:M:S.T',
 	prefixEmptyLines: false,
-	colors: {error: 'red', warn: 'yellow', log: 'lightgray', info: 'blue', debug: 'gray', timer: 'green'}
+	indent: 2,
+	colors: {error: 'red', warn: 'yellow', log: 'lightgray', info: 'blue', debug: 'gray', timer: 'green', func: 'purple'}
 }
 const fmtDate = (date: Date, fmt: string) => {
 	const o = {
@@ -48,6 +49,7 @@ const removeColorSpecifiers = (s: string, removeLimit: number) => {
 }
 
 const rawConsole = {...globalThis.console}
+let currentIndent = 0
 
 const timestampedLeveledLog = (level: keyof typeof config.colors, data: any[]) => {
 	const [dp, lp] = getPrefix(level)
@@ -76,6 +78,7 @@ const timestampedLeveledLog = (level: keyof typeof config.colors, data: any[]) =
 	}
 
 	const pf = `color:${config.colors[level]}`
+	const indent = ' '.repeat(currentIndent)
 	let currentUserColorFormat = pf
 	for (let i = 0; i < outputInfo.length; ++i) {
 		const c = outputInfo[i]
@@ -83,7 +86,7 @@ const timestampedLeveledLog = (level: keyof typeof config.colors, data: any[]) =
 		if (config.prefixEmptyLines === false && emptyLineIntention) {
 			// if there is only one line and it's empty, don't prefix it
 		} else {
-			c.l = `%c${dp}${connector}${lp} %c` + c.l
+			c.l = `%c${dp}${connector}${lp} %c` + indent + c.l
 			c.colors = [pf, currentUserColorFormat, ...c.colors]
 		}
 		if (c.colors.length > 0) {
@@ -94,7 +97,7 @@ const timestampedLeveledLog = (level: keyof typeof config.colors, data: any[]) =
 	const finalContent = outputInfo.map(o => o.l).join('\n')
 	const finalColors = outputInfo.flatMap(o => o.colors)
 	file.write(new TextEncoder().encode(removeColorSpecifiers(finalContent, finalColors.length) + '\n'))
-	rawConsole[level === 'timer'? 'log' : level](finalContent, ...finalColors)
+	rawConsole[level === 'timer' || level === 'func'? 'log' : level](finalContent, ...finalColors)
 }
 
 for (const k of ['error', 'warn', 'log', 'info', 'debug'] as const) {
@@ -149,6 +152,28 @@ export function prefixEmptyLines(p = false) {
  */
 export function setColors(colors: Partial<typeof config.colors>) {
 	Object.assign(config.colors, colors)
+}
+
+/**
+ * This function need to be called by `using` statement.
+ * It will issue a log "${funcName} enters" with 'func' level immediately, and a log 
+ * "${funcName} leaves" will be automatically issued when current scope ends
+ * All other logs issued in this scope will be promoted using spaces by 1 indent level
+ * @example
+  * function init() {
+ *   using x = traceScope('Init')
+ *   ...
+ *   console.log('another log inside init')
+ *   ...
+ * }
+ */
+export function traceScope(name: string) {
+	timestampedLeveledLog('func', [`${name} enters`])
+	currentIndent += config.indent
+	return { [Symbol.dispose](){
+		currentIndent -= config.indent
+		timestampedLeveledLog('func', [`${name} leaves`])
+	}}
 }
 
 /**

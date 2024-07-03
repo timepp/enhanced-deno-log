@@ -1,5 +1,4 @@
 import * as log from './log.ts'
-log.setDateFormat('m-d H:M:S.T')
 
 console.log('Hello, World!')
 console.log('')
@@ -19,3 +18,13 @@ console.timeLog('timer', 'action started')
 console.timeEnd('timer')
 console.log()
 console.info('%cmulti-line \n%ccolored%c\nlog', 'color:#00ffff', 'color:#ff00ff', 'color:#00ff00')
+try {
+    const text = Deno.readTextFileSync('nonexistent.txt')
+} catch (e) {
+    console.error(e)
+}
+
+{
+    log.traceScope('block 1')
+    console.log('log inside block 1')
+}
