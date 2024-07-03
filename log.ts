@@ -149,6 +149,7 @@ export function prefixEmptyLines(p = false) {
 
 /**
  * Set colors for different log levels
+ * @param colors an object with keys 'error', 'warn', 'log', 'info', 'debug', 'timer', 'func'
  */
 export function setColors(colors: Partial<typeof config.colors>) {
 	Object.assign(config.colors, colors)

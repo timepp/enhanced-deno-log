@@ -1,4 +1,4 @@
-import * as log from './log.ts' // 'jsr:@timepp/enhanced-deno-log'
+import * as log from 'jsr:@timepp/enhanced-deno-log@0.1.8'
 
 function getContent(filename: string) {
     using _ = log.traceScope('getContent')
@@ -21,9 +21,9 @@ console.log('Hello, World!')
 console.warn('警告!')
 init()
 console.log()
-console.error('\nmulti line\nerrors!\nanother line!\n\nfda\n\n')
+console.log('\nmulti line\nlogs!\nanother line!\n\nfda\n\n')
 console.time('timer')
 console.timeLog('timer', 'action started')
 console.timeEnd('timer')
 console.log()
-console.info('%cmulti-line \n%ccolored%c\nlog', 'color:#00ffff', 'color:#ff00ff', 'color:#00ff00')
+console.info('multi-%cline \ncolored%c\nlog', 'color:#00ffff', 'color:#ff00ff')

@@ -1,6 +1,6 @@
 # Enhanced Deno Log
 
-Brings timestamp/levels prefix, coloring by levels, and log files to Deno's `console` API.
+Add timestamp, levels, coloring by levels, log to files and indentions to Deno's `console` API with zero configuration.
 
 > Note: https://jsr.io/@timepp/zero-config-deno-log is the old name, it contains versions up to 0.1.7 and won't be updated anymore. Please use https://jsr.io/@timepp/enhanced-deno-log instead.
 
@@ -10,8 +10,9 @@ Brings timestamp/levels prefix, coloring by levels, and log files to Deno's `con
 - Each log is prefixed with timestamp and log level; for multi-line logs, each log line is prefixed with timestamp and log level individually so that they are aligned and easy to read
 - Log files are automatically created in `./logs` folder, with the entrypoint script name as the file name
 - This module changes `console.xxx` behavior globally, so all your existing code will automatically have these features with zero configuration; you can customize detailed behavior if needed
+- Support auto indention via 'traceScope' using the latest typescript `using` syntax
 
-![](screenshot.png)
+![screenshot](images/screenshot.png)
 
 ## Usage
 
@@ -29,13 +30,16 @@ That's it.
 In rare cases you may want to customize the log behavior.
 
 ```ts
-import * as dl from 'jsr:@timepp/zero-config-deno-log'
+import * as dl from 'jsr:@timepp/enhanced-deno-log'
 
 // change date format:
 dl.setDateFormat('m-d H:M:S')
 
 // set empty line prefix behavior:
 dl.prefixEmptyLines(true)
+
+// set warn and timer color
+dl.setColors({ warn: 'lime', timer: '#00FFFF' })
 
 ```
 
@@ -44,5 +48,33 @@ dl.prefixEmptyLines(true)
 You can still use colored logs, in this case the base color of the line is decided by level, and your colors are respected at the same time.
 
 ```ts
-console.info('this is in "info" color (the same for prefix as well). %c and this is in "red" color', 'color: red')
+console.info('multi-%cline \ncolored%c\nlog', 'color:#00ffff', 'color:#ff00ff')
 ```
+![multi line colored log](images/multi-line-colored.png)
+
+### Auto indentions
+
+You can use `traceScope` to automatically indent/unindent logs when code enters/leaves scopes.
+If there are deep nested functions, you can call `traceScope` on important functions to make logs more readable.
+
+```ts
+function init() {
+    using _ = log.traceScope('init')
+    console.info('Information!')
+    const content = getContent('file.txt')
+    console.log('content:', content)
+}
+function getContent(filename: string) {
+    using _ = log.traceScope('getContent')
+    try {
+        console.debug('Opening file...')
+        return Deno.readTextFileSync(filename)
+    } catch (e) {
+        console.error(e)
+        return ''
+    }
+}
+```
+
+The corresponding log could be:
+![indention example](images/indention.png)
