@@ -167,7 +167,7 @@ export function setColors(colors: Partial<typeof config.colors>) {
  *   ...
  * }
  */
-export function traceScope(name: string) {
+export function traceScope(name: string) : { [Symbol.dispose](): void } {
 	timestampedLeveledLog('func', [`${name} enters`])
 	currentIndent += config.indent
 	return { [Symbol.dispose](){
