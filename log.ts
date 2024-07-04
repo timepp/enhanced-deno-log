@@ -178,6 +178,15 @@ export function traceScope(name: string) : { [Symbol.dispose](): void } {
 }
 
 /**
+ * traceScope with a function name automatically detected
+ */
+export function traceFunction() : { [Symbol.dispose](): void } {
+	const l = new Error().stack?.split('\n')[2]
+	const name = l?.match(/at (.+) \(/)?.[1] || l?.match(/\/([^\/]+)$/)?.[1] || 'anonymous'
+	return traceScope(name)
+}
+
+/**
  * Get the raw console object in case you need to use the original console
  */
 export const raw = rawConsole

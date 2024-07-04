@@ -54,8 +54,11 @@ console.info('multi-%cline \ncolored%c\nlog', 'color:#00ffff', 'color:#ff00ff')
 
 ### Auto indentions
 
-You can use `traceScope` to automatically indent/unindent logs when code enters/leaves scopes.
-If there are deep nested functions, you can call `traceScope` on important functions to make logs more readable.
+You can use `traceScope` and `traceFunction` to automatically indent/unindent logs when code enters/leaves scopes.
+If there are deep nested functions, these will make logs more readable.
+
+- `traceScope` takes a string as the scope name
+- `traceFunction` doesn't take any argument, it will retrieve the function name (from error stack) as the scope name
 
 ```ts
 function init() {
@@ -65,9 +68,10 @@ function init() {
     console.log('content:', content)
 }
 function getContent(filename: string) {
-    using _ = log.traceScope('getContent')
+    using _ = log.traceFunction()
     try {
-        console.debug('Opening file...')
+        using _ = log.traceScope('read file')
+        console.debug('file name:', filename)
         return Deno.readTextFileSync(filename)
     } catch (e) {
         console.error(e)
@@ -78,3 +82,5 @@ function getContent(filename: string) {
 
 The corresponding log could be:
 ![indention example](images/indention.png)
+
+Unfortunately, different async promise chain will interfere with each other when they are running in parallel. So use this feature with caution.

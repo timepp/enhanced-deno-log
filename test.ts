@@ -24,7 +24,26 @@ try {
     console.error(e)
 }
 
-{
-    log.traceScope('block 1')
-    console.log('log inside block 1')
+function getContent(filename: string) {
+    using _ = log.traceFunction()
+    try {
+        console.debug('Opening file...')
+        return Deno.readTextFileSync(filename)
+    } catch (e) {
+        console.error(e)
+        return ''
+    }
 }
+
+function init() {
+    using _ = log.traceFunction()
+    console.info('Information!')
+    const content = getContent('nonexistent.txt')
+    console.log('content:', content);
+    (function () {
+        using _ = log.traceFunction()
+        console.log('inside IIFE')
+    }())
+}
+
+init()
