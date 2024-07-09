@@ -1,57 +1,83 @@
 // deno-lint-ignore-file no-explicit-any
-const name = Deno.mainModule.replace(/.*\/([^\\]+)\.ts$/, '$1')
-try { Deno.statSync('./logs/') } catch { Deno.mkdirSync('./logs/') }
-const file = Deno.createSync(`./logs/${name}-${new Date().toJSON().replaceAll(':', '_')}.log`)
-const config = {
-	dateFormat: 'y-m-d H:M:S.T',
+
+import * as dt from 'https://deno.land/std/datetime/mod.ts'
+
+const defaultConfig = {
+	dateFormat: 'yyyy-MM-dd HH:mm:ss.SSS',
 	prefixEmptyLines: false,
 	indent: 2,
 	colors: {error: 'red', warn: 'yellow', log: 'lightgray', info: 'blue', debug: 'gray', timer: 'green', func: 'purple'}
 }
-const fmtDate = (date: Date, fmt: string) => {
-	const o = {
-		'y': date.getFullYear(),
-		'm': date.getMonth() + 1,
-		'd': date.getDate(),
-		'H': date.getHours(),
-		'M': date.getMinutes(),
-		'S': date.getSeconds(),
-		'T': date.getMilliseconds()
-	}
-	return [...fmt].map(c => o[c as keyof typeof o]?.toString()?.padStart(c === 'T'? 3 : 2, '0') || c).join('')
-}
-const getPrefix = (type: string) => [`[${fmtDate(new Date, config.dateFormat)}]`, `[${type.padStart(5, ' ')}]`]
-const formatParams = (data: any[]) => {
-	const records = []
-	for (let i = 0; i < data.length; ++i)
-		records.push((typeof data[i] === 'string') ? data[i] : Deno.inspect(data[i]))
-	return records.join(' ')
-}
-// count '%c' in a string but ignore '%%c'
-const findColorSpecifiers = (s: string) => {
-	const r = []
-	for (let i = 0; i < s.length - 1; ++i) {
-		if (s[i] === '%' && s[i + 1] === 'c' && (i === 0 || s[i - 1] !== '%'))
-			r.push(i)
-	}
-	return r
-}
-const removeColorSpecifiers = (s: string, removeLimit: number) => {
-	const cs = findColorSpecifiers(s).slice(0, removeLimit)
-	let r = ''
-	let p = 0
-	for (const c of cs) {
-		r += s.slice(p, c)
-		p = c + 2
-	}
-	r += s.slice(p)
-	return r
-}
 
+let file: Deno.FsFile
+const config = {...defaultConfig, colors: {...defaultConfig.colors}}
 const rawConsole = {...globalThis.console}
+const timers: Record<string, number> = {}
 let currentIndent = 0
+init()
 
-const timestampedLeveledLog = (level: keyof typeof config.colors, data: any[]) => {
+function init() {
+	const name = Deno.mainModule.replace(/.*\/([^\\]+)\.ts$/, '$1')
+	try { Deno.statSync('./logs/') } catch { Deno.mkdirSync('./logs/') }
+	file = Deno.createSync(`./logs/${name}-${new Date().toJSON().replaceAll(':', '_')}.log`)
+	for (const k of ['error', 'warn', 'log', 'info', 'debug'] as const) {
+		globalThis.console[k] = (...data: any[]) => timestampedLeveledLog(k, data)
+	}
+	
+	globalThis.console.time = (label = 'default') => {
+		if (timers[label])
+			return console.warn(`Timer ${label} already exists.`, timers)
+		timers[label] = performance.now()
+	}
+	globalThis.console.timeLog = (label = 'default', ...data: any[]) => {
+		const logTime = performance.now()
+		const startTime = timers[label]
+		if (!startTime)
+			return console.warn(`Timer ${label} doesn't exist.`, timers)
+		timestampedLeveledLog('timer', [`${label}: ${(logTime - startTime).toLocaleString(undefined, { maximumFractionDigits: 0 })}ms`, ...data])
+	}
+	globalThis.console.timeEnd = (label = 'default') => {
+		const endTime = performance.now()
+		const startTime = timers[label]
+		if (!startTime)
+			return console.warn(`Timer ${label} doesn't exist.`, timers)
+		timestampedLeveledLog('timer', [`${label}: ${(endTime - startTime).toLocaleString(undefined, { maximumFractionDigits: 0 })}ms - timer ended`])
+		delete timers[label]
+	}
+}
+
+function timestampedLeveledLog (level: keyof typeof config.colors, data: any[]) {
+	const getPrefix = (type: string) => [`[${dt.format(new Date, config.dateFormat)}]`, `[${type.padStart(5, ' ')}]`]
+
+	const formatParams = (data: any[]) => {
+		const records = []
+		for (let i = 0; i < data.length; ++i)
+			records.push((typeof data[i] === 'string') ? data[i] : Deno.inspect(data[i]))
+		return records.join(' ')
+	}
+
+	// count '%c' in a string but ignore '%%c'
+	const findColorSpecifiers = (s: string) => {
+		const r = []
+		for (let i = 0; i < s.length - 1; ++i) {
+			if (s[i] === '%' && s[i + 1] === 'c' && (i === 0 || s[i - 1] !== '%'))
+				r.push(i)
+		}
+		return r
+	}
+
+	const removeColorSpecifiers = (s: string, removeLimit: number) => {
+		const cs = findColorSpecifiers(s).slice(0, removeLimit)
+		let r = ''
+		let p = 0
+		for (const c of cs) {
+			r += s.slice(p, c)
+			p = c + 2
+		}
+		r += s.slice(p)
+		return r
+	}
+
 	const [dp, lp] = getPrefix(level)
 	const emptyLineIntention = data.length === 0
 	if (data.length === 0) data = ['']
@@ -100,39 +126,11 @@ const timestampedLeveledLog = (level: keyof typeof config.colors, data: any[]) =
 	rawConsole[level === 'timer' || level === 'func'? 'log' : level](finalContent, ...finalColors)
 }
 
-for (const k of ['error', 'warn', 'log', 'info', 'debug'] as const) {
-	globalThis.console[k] = (...data: any[]) => timestampedLeveledLog(k, data)
-}
-
-const timers: Record<string, number> = {}
-globalThis.console.time = (label = 'default') => {
-	if (timers[label])
-		return console.warn(`Timer ${label} already exists.`, timers)
-	timers[label] = performance.now()
-}
-globalThis.console.timeLog = (label = 'default', ...data: any[]) => {
-	const logTime = performance.now()
-	const startTime = timers[label]
-	if (!startTime)
-		return console.warn(`Timer ${label} doesn't exist.`, timers)
-	timestampedLeveledLog('timer', [`${label}: ${(logTime - startTime).toLocaleString(undefined, { maximumFractionDigits: 0 })}ms`, ...data])
-}
-globalThis.console.timeEnd = (label = 'default') => {
-	const endTime = performance.now()
-	const startTime = timers[label]
-	if (!startTime)
-		return console.warn(`Timer ${label} doesn't exist.`, timers)
-	timestampedLeveledLog('timer', [`${label}: ${(endTime - startTime).toLocaleString(undefined, { maximumFractionDigits: 0 })}ms - timer ended`])
-	delete timers[label]
-}
-
 /** 
  * Set date format for timestamp prefix in log messages
- * Use following single character to represent date parts: y - year, m - month, d - day, H - hour, M - minute, S - second, T - millisecond
- * 
- * e.g. setDateFormat('y-m-d H:M:S.T')
+ * see https://deno.land/std/datetime/mod.ts for more information
  */
-export function setDateFormat(fmt = 'y-m-d H:M:S.T') {
+export function setDateFormat(fmt = defaultConfig.dateFormat) {
 	config.dateFormat = fmt
 }
 
