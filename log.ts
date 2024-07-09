@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 
-import * as dt from 'https://deno.land/std/datetime/mod.ts'
+import * as dt from 'jsr:@std/datetime'
 
 const defaultConfig = {
 	dateFormat: 'yyyy-MM-dd HH:mm:ss.SSS',
