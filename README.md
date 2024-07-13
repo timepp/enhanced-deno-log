@@ -19,13 +19,13 @@ Add timestamp, levels, coloring by levels, log to files and indentions to Deno's
 Recommended (simplest) usage: Use default settings and new log take effect immediately. No need to explicitly init the log.
 
 ```typescript
-import 'jsr:@timepp/enhanced-deno-log/autoinit.ts'
+import 'jsr:@timepp/enhanced-deno-log/autoinit'
 ```
 
 If you want to customize other behaviors, e.g. colors:
 
 ```typescript
-import * as log from 'jsr:@timepp/enhanced-deno-log/autoinit.ts'
+import * as log from 'jsr:@timepp/enhanced-deno-log/autoinit'
 ...
 log.setColors(...) // see advanced usage section
 ```
