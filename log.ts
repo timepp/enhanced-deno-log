@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 
-import * as dt from 'jsr:@std/datetime'
+import * as dt from 'jsr:@std/datetime@0.224.3'
 
 const defaultConfig = {
 	dateFormat: 'yyyy-MM-dd HH:mm:ss.SSS',
@@ -14,12 +14,11 @@ const config = {...defaultConfig, colors: {...defaultConfig.colors}}
 const rawConsole = {...globalThis.console}
 const timers: Record<string, number> = {}
 let currentIndent = 0
-init()
 
-function init() {
+export function init() {
 	const name = Deno.mainModule.replace(/.*\/([^\\]+)\.ts$/, '$1')
 	try { Deno.statSync('./logs/') } catch { Deno.mkdirSync('./logs/') }
-	file = Deno.createSync(`./logs/${name}-${new Date().toJSON().replaceAll(':', '_')}.log`)
+	file = Deno.createSync(`./logs/${name}-${dt.format(new Date, 'yyyyMMdd-HHmmss')}.log`)
 	for (const k of ['error', 'warn', 'log', 'info', 'debug'] as const) {
 		globalThis.console[k] = (...data: any[]) => timestampedLeveledLog(k, data)
 	}

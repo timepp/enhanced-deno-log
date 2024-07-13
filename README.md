@@ -16,46 +16,62 @@ Add timestamp, levels, coloring by levels, log to files and indentions to Deno's
 
 ## Usage
 
-in your entrypoint file:
-```
-import 'jsr:@timepp/zero-config-deno-log'
+Recommended (simplest) usage: Use default settings and new log take effect immediately. No need to explicitly init the log.
+
+```typescript
+import 'jsr:@timepp/enhanced-deno-log/autoinit.ts'
 ```
 
-That's it.
+If you want to customize other behaviors, e.g. colors:
+
+```typescript
+import * as log from 'jsr:@timepp/enhanced-deno-log/autoinit.ts'
+...
+log.setColors(...) // see advanced usage section
+```
+
+If you dont want auto init and control when to enable the enhanced log:
+
+```typescript
+import * as log from 'jsr:@timepp/enhanced-deno-log'
+...
+log.init()
+```
 
 ## Advanced Usage
 
 ### Customizing log behavior
 
-In rare cases you may want to customize the log behavior.
+In rare cases you may want to customize the log behavior, you can call `log.xxx`.
 
 ```ts
-import * as dl from 'jsr:@timepp/enhanced-deno-log'
 
 // change date format:
-dl.setDateFormat('m-d H:M:S')
+log.setDateFormat('yyyy-MM-dd HH:mm:ss.SSS')
 
 // set empty line prefix behavior:
-dl.prefixEmptyLines(true)
+log.prefixEmptyLines(true)
 
 // set warn and timer color
-dl.setColors({ warn: 'lime', timer: '#00FFFF' })
-
+log.setColors({ warn: 'lime', timer: '#00FFFF' })
 ```
+
+Refer to their document for more details.
 
 ### Existing colored logs
 
-You can still use colored logs, in this case the base color of the line is decided by level, and your colors are respected at the same time.
+You can still use colored logs, in this case the base color of the line is decided by level, and your colors are fully respected in the content area.
 
 ```ts
 console.info('multi-%cline \ncolored%c\nlog', 'color:#00ffff', 'color:#ff00ff')
 ```
+
 ![multi line colored log](images/multi-line-colored.png)
 
 ### Auto indentions
 
 You can use `traceScope` and `traceFunction` to automatically indent/unindent logs when code enters/leaves scopes.
-If there are deep nested functions, these will make logs more readable.
+If there are deep nested functions, it will make logs more readable.
 
 - `traceScope` takes a string as the scope name
 - `traceFunction` doesn't take any argument, it will retrieve the function name (from error stack) as the scope name
