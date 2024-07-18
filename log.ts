@@ -165,8 +165,9 @@ export function setColors(colors: Partial<typeof config.colors>) {
  *   ...
  * }
  */
-export function traceScope(name: string) : { [Symbol.dispose](): void } {
-	timestampedLeveledLog('func', [`${name} enters`])
+export function traceScope(name: string, context = '') : { [Symbol.dispose](): void } {
+	const contextText = context ? ` (${context})` : ''
+	timestampedLeveledLog('func', [`${name} enters${contextText}`])
 	currentIndent += config.indent
 	return { [Symbol.dispose](){
 		currentIndent -= config.indent
@@ -177,10 +178,10 @@ export function traceScope(name: string) : { [Symbol.dispose](): void } {
 /**
  * traceScope with a function name automatically detected
  */
-export function traceFunction() : { [Symbol.dispose](): void } {
+export function traceFunction(args: any[] = []) : { [Symbol.dispose](): void } {
 	const l = new Error().stack?.split('\n')[2]
 	const name = l?.match(/at (.+) \(/)?.[1] || l?.match(/\/([^\/]+)$/)?.[1] || 'anonymous'
-	return traceScope(name)
+	return traceScope(name, args.length > 0 ? 'args: ' + JSON.stringify(args) : '')
 }
 
 /**

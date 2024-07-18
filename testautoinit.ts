@@ -1,3 +1,4 @@
 import './autoinit.ts'
+import {test} from './test.ts'
 
-console.log('Hello, World!')
+await test()

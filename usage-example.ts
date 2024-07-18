@@ -1,7 +1,7 @@
-import * as log from 'jsr:@timepp/enhanced-deno-log/autoinit'
+import * as log from 'jsr:@timepp/enhanced-deno-log@0.2.3/autoinit'
 
 function getContent(filename: string) {
-    using _ = log.traceFunction()
+    using _ = log.traceFunction([...arguments])
     try {
         console.debug('Opening file...')
         return Deno.readTextFileSync(filename)
