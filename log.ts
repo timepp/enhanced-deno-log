@@ -2,15 +2,54 @@
 
 import * as dt from 'jsr:@std/datetime@0.224.3'
 
-const defaultConfig = {
-	dateFormat: 'yyyy-MM-dd HH:mm:ss.SSS',
-	prefixEmptyLines: false,
-	indent: 2,
-	colors: {error: 'red', warn: 'yellow', log: 'lightgray', info: 'blue', debug: 'gray', timer: 'green', func: 'purple'}
+type logLevel = 'error' | 'warn' | 'log' | 'info' | 'debug' | 'timer' | 'func'
+type LogConfig = {
+	// Special format specifiers
+	// {T}: time, current local time formated by `timeFormat`
+	// {l}: log level in lowercase
+	// {L}: log level in uppercase
+	// {C}: multi-line connector
+	prefixFormat: string,
+
+	// the format of the time part in the prefix
+	// see https://deno.land/std/datetime/mod.ts for more information
+	timeFormat: string,
+
+	// how to align the level string in the prefix
+	levelAlignment: 'left' | 'right' | 'none',
+
+	prefixEmptyLines: boolean,
+	enabledLevels: logLevel[],
+	indentSize: number,
+	colors: Record<logLevel, string>
+}
+
+function getDefaultConsoleConfig() : LogConfig {
+	return {
+		prefixFormat: '[{T}]{C}[{L}] ',
+		timeFormat: 'MM-dd HH:mm:ss.SSS',
+		levelAlignment: 'right',
+		enabledLevels: ['error', 'warn', 'log', 'info', 'debug', 'timer', 'func'],
+		prefixEmptyLines: false,
+		indentSize: 2,
+		colors: {error: 'red', warn: 'yellow', log: 'lightgray', info: 'blue', debug: 'gray', timer: 'green', func: 'purple'}
+	}
+}
+function getDefaultFileConfig() : LogConfig {
+	return {
+		prefixFormat: '[{T}]{C}[{L}] ',
+		timeFormat: 'yyyy-MM-dd HH:mm:ss.SSS',
+		levelAlignment: 'right',
+		enabledLevels: ['error', 'warn', 'log', 'info', 'debug', 'timer', 'func'],
+		prefixEmptyLines: false,
+		indentSize: 4,
+		colors: {error: 'red', warn: 'yellow', log: 'lightgray', info: 'blue', debug: 'gray', timer: 'green', func: 'purple'}
+	}
 }
 
 let file: Deno.FsFile
-const config = {...defaultConfig, colors: {...defaultConfig.colors}}
+const consoleConfig = getDefaultConsoleConfig()
+const fileConfig = getDefaultFileConfig()
 const rawConsole = {...globalThis.console}
 const timers: Record<string, number> = {}
 let currentIndent = 0
@@ -45,16 +84,7 @@ export function init() {
 	}
 }
 
-function timestampedLeveledLog (level: keyof typeof config.colors, data: any[]) {
-	const getPrefix = (type: string) => [`[${dt.format(new Date, config.dateFormat)}]`, `[${type.padStart(5, ' ')}]`]
-
-	const formatParams = (data: any[]) => {
-		const records = []
-		for (let i = 0; i < data.length; ++i)
-			records.push((typeof data[i] === 'string') ? data[i] : Deno.inspect(data[i]))
-		return records.join(' ')
-	}
-
+function timestampedLeveledLog (level: logLevel, data: any[]) {
 	// count '%c' in a string but ignore '%%c'
 	const findColorSpecifiers = (s: string) => {
 		const r = []
@@ -77,79 +107,93 @@ function timestampedLeveledLog (level: keyof typeof config.colors, data: any[]) 
 		return r
 	}
 
-	const [dp, lp] = getPrefix(level)
-	const emptyLineIntention = data.length === 0
-	if (data.length === 0) data = ['']
-
-	let fi = 1
-	const outputInfo: {l: string, colors: string[]}[] = []
-	if (typeof data[0] === 'string') {
-		const lines = data[0].split('\n')
-		for (const l of lines) {
-			const c = findColorSpecifiers(l).length
-			outputInfo.push({l, colors: data.slice(fi, fi + c)})
-			fi += c
+	const breakDataToColoredLines = (data: any[]) => {
+		const formatParams = (data: any[]) => {
+			const records = []
+			for (let i = 0; i < data.length; ++i)
+				records.push((typeof data[i] === 'string') ? data[i] : Deno.inspect(data[i]))
+			return records.join(' ')
 		}
-	} else {
-		outputInfo.push(...formatParams([data[0]]).split('\n').map(l => ({l, colors: []})))
-	}
 
-	if (fi < data.length) {
-		const remainingLines = formatParams(data.slice(fi)).split('\n')
-		outputInfo[outputInfo.length - 1].l += ' '+ remainingLines.shift()
-		for (const l of remainingLines) {
-			outputInfo.push({ l, colors: [] })
-		}
-	}
-
-	const pf = `color:${config.colors[level]}`
-	const indent = ' '.repeat(currentIndent)
-	let currentUserColorFormat = pf
-	for (let i = 0; i < outputInfo.length; ++i) {
-		const c = outputInfo[i]
-		const connector = outputInfo.length === 1 ? '─' : (i === 0 ? '┬' : i === outputInfo.length - 1 ? '└' : '├')
-		if (config.prefixEmptyLines === false && emptyLineIntention) {
-			// if there is only one line and it's empty, don't prefix it
+		if (data.length === 0) data = ['']
+		let fi = 1
+		const cls: {l: string, colors: string[]}[] = []
+		if (typeof data[0] === 'string') {
+			const lines = data[0].split('\n')
+			for (const l of lines) {
+				const c = findColorSpecifiers(l).length
+				cls.push({l, colors: data.slice(fi, fi + c)})
+				fi += c
+			}
 		} else {
-			c.l = `%c${dp}${connector}${lp} %c` + indent + c.l
-			c.colors = [pf, currentUserColorFormat, ...c.colors]
+			cls.push(...formatParams([data[0]]).split('\n').map(l => ({l, colors: []})))
 		}
-		if (c.colors.length > 0) {
-			currentUserColorFormat = c.colors[c.colors.length - 1]
+	
+		if (fi < data.length) {
+			const remainingLines = formatParams(data.slice(fi)).split('\n')
+			cls[cls.length - 1].l += ' '+ remainingLines.shift()
+			for (const l of remainingLines) {
+				cls.push({ l, colors: [] })
+			}
 		}
+
+		return cls
 	}
 
-	const finalContent = outputInfo.map(o => o.l).join('\n')
-	const finalColors = outputInfo.flatMap(o => o.colors)
-	file.write(new TextEncoder().encode(removeColorSpecifiers(finalContent, finalColors.length) + '\n'))
-	rawConsole[level === 'timer' || level === 'func'? 'log' : level](finalContent, ...finalColors)
+	const computeLogLines = (lines: {l: string, colors: string[]}[], cfg: LogConfig) => {
+		const skipPrefix = data.length === 0 && cfg.prefixEmptyLines === false
+		const dateStr = dt.format(new Date(), cfg.timeFormat)
+		const alignFuncs = {
+			left: (s: string) => s.padEnd(5, ' '),
+			right: (s: string) => s.padStart(5, ' '),
+			none: (s: string) => s
+		}
+		const levelStr = alignFuncs[cfg.levelAlignment](level)
+		const indent = ' '.repeat(currentIndent * cfg.indentSize)
+		const levelColor = `color:${cfg.colors[level]}`
+		let currentUserColorFormat = levelColor
+		const logs = []
+		const colors = []
+		for (let i = 0; i < lines.length; ++i) {
+			const l = lines[i]
+			const connector = lines.length === 1 ? '─' : (i === 0 ? '┬' : i === lines.length - 1 ? '└' : '├')
+			if (skipPrefix) {
+				logs.push(l.l)
+				colors.push(...l.colors)
+			} else {
+				const prefix = cfg.prefixFormat
+					.replaceAll('{T}', dateStr)
+					.replaceAll('{l}', levelStr)
+					.replaceAll('{L}', levelStr.toUpperCase())
+					.replaceAll('{C}', connector)
+				logs.push(`%c${prefix}%c${indent}` + l.l)
+				colors.push(levelColor, currentUserColorFormat, ...l.colors)
+			}
+			if (l.colors.length > 0) currentUserColorFormat = l.colors[l.colors.length - 1]
+		}
+		return {logs, colors}
+	}
+
+	const outputToConsole = consoleConfig.enabledLevels.includes(level)
+	const outputToFile = fileConfig.enabledLevels.includes(level)
+	if (!outputToConsole && !outputToFile) return
+
+	const lines = breakDataToColoredLines(data)
+	
+	if (outputToConsole) {
+		const {logs, colors} = computeLogLines(lines, consoleConfig)
+		rawConsole[level === 'timer' || level === 'func'? 'log' : level](logs.join('\n'), ...colors)
+	}
+
+	if (outputToFile) {
+		const {logs, colors} = computeLogLines(lines, fileConfig)
+		file.write(new TextEncoder().encode(removeColorSpecifiers(logs.join('\n'), colors.length) + '\n'))
+	}
 }
 
-/** 
- * Set date format for timestamp prefix in log messages
- * see https://deno.land/std/datetime/mod.ts for more information
- */
-export function setDateFormat(fmt = defaultConfig.dateFormat) {
-	config.dateFormat = fmt
-}
-
-/**
- * Whether to prefix log calls with no parameters, e.g. `console.log()`
- * Set this to `true` will keep writing prefix in this case
- * Set this to `false` will end up with a blank line
- * Default is `false`
- * Note: there will always be prefix for log calls with parameters, even this causes empty line, e.g. `console.log('')`
- */
-export function prefixEmptyLines(p = false) {
-	config.prefixEmptyLines = p
-}
-
-/**
- * Set colors for different log levels
- * @param colors an object with keys 'error', 'warn', 'log', 'info', 'debug', 'timer', 'func'
- */
-export function setColors(colors: Partial<typeof config.colors>) {
-	Object.assign(config.colors, colors)
+export function setConfig(config: Partial<LogConfig>, applyTo: 'console' | 'file' | 'all' = 'all') {
+	if (applyTo === 'all' || applyTo === 'console') Object.assign(consoleConfig, config)
+	if (applyTo === 'all' || applyTo === 'file') Object.assign(fileConfig, config)
 }
 
 /**
@@ -168,9 +212,9 @@ export function setColors(colors: Partial<typeof config.colors>) {
 export function traceScope(name: string, context = '') : { [Symbol.dispose](): void } {
 	const contextText = context ? ` (${context})` : ''
 	timestampedLeveledLog('func', [`${name} enters${contextText}`])
-	currentIndent += config.indent
+	currentIndent++
 	return { [Symbol.dispose](){
-		currentIndent -= config.indent
+		currentIndent--
 		timestampedLeveledLog('func', [`${name} leaves`])
 	}}
 }

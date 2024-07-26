@@ -1,6 +1,6 @@
 {
     "name": "@timepp/enhanced-deno-log",
-    "version": "0.2.3",
+    "version": "0.3.0",
     "exports": {
         ".": "./log.ts",
         "./autoinit": "./autoinit.ts"

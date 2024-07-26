@@ -1,4 +1,4 @@
-import * as log from 'jsr:@timepp/enhanced-deno-log@0.2.3/autoinit'
+import * as log from 'jsr:@timepp/enhanced-deno-log@0.3.0/autoinit'
 
 function getContent(filename: string) {
     using _ = log.traceFunction([...arguments])
