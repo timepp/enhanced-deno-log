@@ -17,6 +17,10 @@ export async function test() {
     console.time('timer')
     console.timeLog('timer', 'action started')
     console.timeEnd('timer')
+    {
+        using _x = log.traceScope('inner scope', 'with leave log', true)
+        console.log('inner scope log')
+    }
     console.log()
     console.info('%cmulti-line \n%ccolored%c\nlog', 'color:#00ffff', 'color:#ff00ff', 'color:#00ff00')
     try {
@@ -30,7 +34,7 @@ export async function test() {
 }
 
 function syncFunc(s: string, d: number[], o: any) {
-    using _ = log.traceFunction([...arguments])
+    using _ = log.traceFunction(arguments)
     try {
         console.debug('Opening file...')
         return Deno.readTextFileSync('nonexistent.txt')

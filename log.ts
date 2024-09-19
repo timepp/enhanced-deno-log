@@ -2,7 +2,7 @@
 
 import * as dt from 'jsr:@std/datetime@0.224.3'
 
-type logLevel = 'error' | 'warn' | 'log' | 'info' | 'debug' | 'timer' | 'func'
+type LogLevel = 'error' | 'warn' | 'log' | 'info' | 'debug' | 'timer' | 'func'
 type LogConfig = {
 	// Special format specifiers
 	// {T}: time, current local time formated by `timeFormat`
@@ -19,9 +19,9 @@ type LogConfig = {
 	levelAlignment: 'left' | 'right' | 'none',
 
 	prefixEmptyLines: boolean,
-	enabledLevels: logLevel[],
+	enabledLevels: LogLevel[],
 	indentSize: number,
-	colors: Record<logLevel, string>
+	colors: Record<LogLevel, string>
 }
 
 function getDefaultConsoleConfig() : LogConfig {
@@ -29,7 +29,7 @@ function getDefaultConsoleConfig() : LogConfig {
 		prefixFormat: '[{T}]{C}[{L}] ',
 		timeFormat: 'MM-dd HH:mm:ss.SSS',
 		levelAlignment: 'right',
-		enabledLevels: ['error', 'warn', 'log', 'info', 'debug', 'timer', 'func'],
+		enabledLevels: ['error', 'warn', 'info', 'log', 'timer', 'func', 'debug'],
 		prefixEmptyLines: false,
 		indentSize: 2,
 		colors: {error: 'red', warn: 'yellow', log: 'lightgray', info: 'blue', debug: 'gray', timer: 'green', func: 'purple'}
@@ -40,7 +40,7 @@ function getDefaultFileConfig() : LogConfig {
 		prefixFormat: '[{T}]{C}[{L}] ',
 		timeFormat: 'yyyy-MM-dd HH:mm:ss.SSS',
 		levelAlignment: 'right',
-		enabledLevels: ['error', 'warn', 'log', 'info', 'debug', 'timer', 'func'],
+		enabledLevels: ['error', 'warn', 'info', 'log', 'timer', 'func', 'debug'],
 		prefixEmptyLines: false,
 		indentSize: 4,
 		colors: {error: 'red', warn: 'yellow', log: 'lightgray', info: 'blue', debug: 'gray', timer: 'green', func: 'purple'}
@@ -84,7 +84,7 @@ export function init() {
 	}
 }
 
-function timestampedLeveledLog (level: logLevel, data: any[]) {
+function timestampedLeveledLog (level: LogLevel, data: any[]) {
 	// count '%c' in a string but ignore '%%c'
 	const findColorSpecifiers = (s: string) => {
 		const r = []
@@ -191,15 +191,36 @@ function timestampedLeveledLog (level: logLevel, data: any[]) {
 	}
 }
 
+/** Set log config
+ * @param config new config
+ * @param applyTo file or console or all
+ */
 export function setConfig(config: Partial<LogConfig>, applyTo: 'console' | 'file' | 'all' = 'all') {
 	if (applyTo === 'all' || applyTo === 'console') Object.assign(consoleConfig, config)
 	if (applyTo === 'all' || applyTo === 'file') Object.assign(fileConfig, config)
 }
 
 /**
+ * Set log enabled levels to >= the specified level, as the following order:
+ * - error
+ * - warn
+ * - info
+ * - log = timer = func
+ * - debug
+ * @param level expected log level
+ * @param applyTo file or console or all
+ */
+export function setLogLevel(level: 'error' | 'warn' | 'info' | 'log' | 'debug', applyTo: 'console' | 'file' | 'all' = 'all') {
+	const levels: LogLevel[] = ['debug', 'log', 'func', 'timer', 'info', 'warn', 'error']
+	const index = levels.indexOf(level)
+	const enabledLevels = levels.slice(index)
+	setConfig({enabledLevels}, applyTo)
+}
+
+/**
  * This function need to be called by `using` statement.
- * It will issue a log "${funcName} enters" with 'func' level immediately, and a log 
- * "${funcName} leaves" will be automatically issued when current scope ends
+ * It will issue a log "xxx enters" with 'info' level immediately, and a log 
+ * "xxx leaves" will be automatically issued when current scope ends
  * All other logs issued in this scope will be promoted using spaces by 1 indent level
  * @example
   * function init() {
@@ -209,23 +230,25 @@ export function setConfig(config: Partial<LogConfig>, applyTo: 'console' | 'file
  *   ...
  * }
  */
-export function traceScope(name: string, context = '') : { [Symbol.dispose](): void } {
+export function traceScope(name: string, context = '', leaveLog = false, level: LogLevel = 'info') : { [Symbol.dispose](): void } {
 	const contextText = context ? ` (${context})` : ''
-	timestampedLeveledLog('func', [`${name} enters${contextText}`])
+	timestampedLeveledLog(level, [`${name} enters${contextText}`])
 	currentIndent++
 	return { [Symbol.dispose](){
 		currentIndent--
-		timestampedLeveledLog('func', [`${name} leaves`])
+		if (leaveLog) timestampedLeveledLog(level, [`${name} leaves`])
 	}}
 }
 
 /**
- * traceScope with a function name automatically detected
+ * This function need to be called by `using` statement. 
+ * It will issue a log "${funcName} called" with 'func' level immediately, and a log
+ * 
  */
-export function traceFunction(args: any[] = []) : { [Symbol.dispose](): void } {
+export function traceFunction(args: IArguments|null = null, leaveLog = false) : { [Symbol.dispose](): void } {
 	const l = new Error().stack?.split('\n')[2]
 	const name = l?.match(/at (.+) \(/)?.[1] || l?.match(/\/([^\/]+)$/)?.[1] || 'anonymous'
-	return traceScope(name, args.length > 0 ? 'args: ' + JSON.stringify(args) : '')
+	return traceScope(name, args ? 'args: ' + JSON.stringify([...args]) : '', leaveLog, 'func')
 }
 
 /**

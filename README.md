@@ -2,8 +2,6 @@
 
 Add timestamp, levels, coloring by levels, log to files and indentions to Deno's `console` API with zero configuration.
 
-> Note: https://jsr.io/@timepp/zero-config-deno-log is the old name, it contains versions up to 0.1.7 and won't be updated anymore. Please use https://jsr.io/@timepp/enhanced-deno-log instead.
-
 ## Features
 
 - Colored output for errors(red), warnings(yellow), infos(blue), debugs(gray), timers(green)
@@ -19,13 +17,13 @@ Add timestamp, levels, coloring by levels, log to files and indentions to Deno's
 Recommended (simplest) usage: Use default settings and new log take effect immediately. No need to explicitly init the log.
 
 ```typescript
-import 'jsr:@timepp/enhanced-deno-log/autoinit'
+import 'jsr:@timepp/enhanced-deno-log/auto-init'
 ```
 
 If you want to customize other behaviors, e.g. colors:
 
 ```typescript
-import * as log from 'jsr:@timepp/enhanced-deno-log/autoinit'
+import * as log from 'jsr:@timepp/enhanced-deno-log/auto-init'
 ...
 log.setColors(...) // see advanced usage section
 ```
