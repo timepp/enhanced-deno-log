@@ -47,7 +47,7 @@ function getDefaultFileConfig() : LogConfig {
 	}
 }
 
-let file: Deno.FsFile
+let fileLogger: Deno.FsFile
 const consoleConfig = getDefaultConsoleConfig()
 const fileConfig = getDefaultFileConfig()
 const rawConsole = {...globalThis.console}
@@ -55,9 +55,6 @@ const timers: Record<string, number> = {}
 let currentIndent = 0
 
 export function init() {
-	const name = Deno.mainModule.replace(/.*\/([^\\]+)\.ts$/, '$1')
-	try { Deno.statSync('./logs/') } catch { Deno.mkdirSync('./logs/') }
-	file = Deno.createSync(`./logs/${name}-${dt.format(new Date, 'yyyyMMdd-HHmmss')}.log`)
 	for (const k of ['error', 'warn', 'log', 'info', 'debug'] as const) {
 		globalThis.console[k] = (...data: any[]) => timestampedLeveledLog(k, data)
 	}
@@ -82,6 +79,15 @@ export function init() {
 		timestampedLeveledLog('timer', [`${label}: ${(endTime - startTime).toLocaleString(undefined, { maximumFractionDigits: 0 })}ms - timer ended`])
 		delete timers[label]
 	}
+}
+
+function getFileLogger() {
+	if (fileLogger) return fileLogger
+
+	const name = Deno.mainModule.replace(/.*\/([^\\]+)\.ts$/, '$1')
+	try { Deno.statSync('./logs/') } catch { Deno.mkdirSync('./logs/') }
+	fileLogger = Deno.createSync(`./logs/${name}-${dt.format(new Date, 'yyyyMMdd-HHmmss')}.log`)
+	return fileLogger
 }
 
 function timestampedLeveledLog (level: LogLevel, data: any[]) {
@@ -187,6 +193,7 @@ function timestampedLeveledLog (level: LogLevel, data: any[]) {
 
 	if (outputToFile) {
 		const {logs, colors} = computeLogLines(lines, fileConfig)
+		const file = getFileLogger()
 		file.write(new TextEncoder().encode(removeColorSpecifiers(logs.join('\n'), colors.length) + '\n'))
 	}
 }
