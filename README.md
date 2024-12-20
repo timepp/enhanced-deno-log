@@ -25,10 +25,10 @@ If you want to customize other behaviors, e.g. colors:
 ```typescript
 import * as log from 'jsr:@timepp/enhanced-deno-log/auto-init'
 ...
-log.setColors(...) // see advanced usage section
+log.setConfig(...) // see advanced usage section
 ```
 
-If you dont want auto init and control when to enable the enhanced log:
+If you don't want auto init and control when to enable the enhanced log:
 
 ```typescript
 import * as log from 'jsr:@timepp/enhanced-deno-log'
@@ -40,21 +40,20 @@ log.init()
 
 ### Customizing log behavior
 
-In rare cases you may want to customize the log behavior, you can call `log.xxx`.
-
 ```ts
 
-// change date format:
-log.setDateFormat('yyyy-MM-dd HH:mm:ss.SSS')
-
-// set empty line prefix behavior:
-log.prefixEmptyLines(true)
+// change time format:
+log.setConfig({timeFormat:'yyyy-MM-dd HH:mm:ss.SSS'})
 
 // set warn and timer color
-log.setColors({ warn: 'lime', timer: '#00FFFF' })
+log.setConfig({colors:{ warn: 'lime', timer: '#00FFFF' }})
+
+// disable file log
+log.setConfig({enabledLevels:[]}, 'file')
+
 ```
 
-Refer to their document for more details.
+Refer to API spec more details.
 
 ### Existing colored logs
 
