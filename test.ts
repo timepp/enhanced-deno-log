@@ -54,4 +54,5 @@ if (import.meta.main) {
     // log.setConfig({indentSize: 2, prefixFormat: '{T} {C} '}, 'console')
     log.init()
     await test()
+    log.removeOldLogs(1)
 }

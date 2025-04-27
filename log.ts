@@ -54,6 +54,11 @@ const rawConsole = {...globalThis.console}
 const timers: Record<string, number> = {}
 let currentIndent = 0
 
+/**
+ * Get the raw console object in case you need to use the original console
+ */
+export const raw = rawConsole
+
 export function init() {
 	for (const k of ['error', 'warn', 'log', 'info', 'debug'] as const) {
 		globalThis.console[k] = (...data: any[]) => timestampedLeveledLog(k, data)
@@ -258,7 +263,16 @@ export function traceFunction(args: IArguments|null = null, leaveLog = false) : 
 	return traceScope(name, args ? 'args: ' + JSON.stringify([...args]) : '', leaveLog, 'func')
 }
 
-/**
- * Get the raw console object in case you need to use the original console
- */
-export const raw = rawConsole
+export function removeOldLogs(keepDays = 3) {
+	const now = new Date()
+	const keepTime = now.getTime() - keepDays * 24 * 60 * 60 * 1000
+	const keepStr = dt.format(new Date(keepTime), 'yyyyMMdd-HHmmss')
+	for (const f of Deno.readDirSync('./logs/')) {
+		if (f.isFile && f.name.endsWith('.log')) {
+			const fileDateStr = f.name.replace(/.*-(\d{8}-\d{6})\.log$/, '$1')
+			if (fileDateStr < keepStr) {
+				Deno.removeSync(`./logs/${f.name}`)
+			}
+		}
+	}
+}
