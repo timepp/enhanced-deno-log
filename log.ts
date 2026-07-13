@@ -267,6 +267,8 @@ export function removeOldLogs(keepDays = 3) {
 	const now = new Date()
 	const keepTime = now.getTime() - keepDays * 24 * 60 * 60 * 1000
 	const keepStr = dt.format(new Date(keepTime), 'yyyyMMdd-HHmmss')
+	// check if ./logs/ exists
+	try { Deno.statSync('./logs/') } catch { return }
 	for (const f of Deno.readDirSync('./logs/')) {
 		if (f.isFile && f.name.endsWith('.log')) {
 			const fileDateStr = f.name.replace(/.*-(\d{8}-\d{6})\.log$/, '$1')
